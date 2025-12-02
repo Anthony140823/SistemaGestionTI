@@ -1,0 +1,161 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # API GATEWAY - Puerto 8000
+  # ============================================
+  api-gateway:
+    build:
+      context: ./services/api_gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - EQUIPOS_SERVICE_URL=http://equipos-service:8001
+      - PROVEEDORES_SERVICE_URL=http://proveedores-service:8002
+      - MANTENIMIENTO_SERVICE_URL=http://mantenimiento-service:8003
+      - REPORTES_SERVICE_URL=http://reportes-service:8004
+      - AGENT_SERVICE_URL=http://agent-service:8005
+    networks:
+      - ti-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # EQUIPOS SERVICE - Puerto 8001
+  # ============================================
+  equipos-service:
+    build:
+      context: ./services/equipos_service
+      dockerfile: Dockerfile
+    container_name: equipos-service
+    expose:
+      - "8001"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SERVICE_PORT=8001
+    networks:
+      - ti-network
+    restart: unless-stopped
+
+  # ============================================
+  # PROVEEDORES SERVICE - Puerto 8002
+  # ============================================
+  proveedores-service:
+    build:
+      context: ./services/proveedores_service
+      dockerfile: Dockerfile
+    container_name: proveedores-service
+    expose:
+      - "8002"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SERVICE_PORT=8002
+    networks:
+      - ti-network
+    restart: unless-stopped
+
+  # ============================================
+  # MANTENIMIENTO SERVICE - Puerto 8003
+  # ============================================
+  mantenimiento-service:
+    build:
+      context: ./services/mantenimiento_service
+      dockerfile: Dockerfile
+    container_name: mantenimiento-service
+    expose:
+      - "8003"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SERVICE_PORT=8003
+    networks:
+      - ti-network
+    restart: unless-stopped
+
+  # ============================================
+  # REPORTES SERVICE - Puerto 8004
+  # ============================================
+  reportes-service:
+    build:
+      context: ./services/reportes_service
+      dockerfile: Dockerfile
+    container_name: reportes-service
+    expose:
+      - "8004"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SERVICE_PORT=8004
+    networks:
+      - ti-network
+    restart: unless-stopped
+
+  # ============================================
+  # AGENT SERVICE - Puerto 8005
+  # ============================================
+  agent-service:
+    build:
+      context: ./services/agent_service
+      dockerfile: Dockerfile
+    container_name: agent-service
+    expose:
+      - "8005"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SERVICE_PORT=8005
+      - AGENT_RUN_INTERVAL_HOURS=24
+    networks:
+      - ti-network
+    restart: unless-stopped
+
+  # ============================================
+  # FRONTEND STREAMLIT - Puerto 8501
+  # ============================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend-streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      - API_GATEWAY_URL=http://api-gateway:8000
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+    depends_on:
+      - api-gateway
+      - equipos-service
+      - proveedores-service
+      - mantenimiento-service
+      - reportes-service
+      - agent-service
+    networks:
+      - ti-network
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/app
+    command: streamlit run app.py --server.port=8501 --server.address=0.0.0.0
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  ti-network:
+    driver: bridge
+
+# ============================================
+# VOLUMES (para persistencia futura)
+# ============================================
+volumes:
+  reportes-data:
